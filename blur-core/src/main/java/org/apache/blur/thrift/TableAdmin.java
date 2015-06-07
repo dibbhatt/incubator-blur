@@ -40,12 +40,14 @@ import org.apache.blur.log.Log;
 import org.apache.blur.log.LogFactory;
 import org.apache.blur.manager.clusterstatus.ClusterStatus;
 import org.apache.blur.server.TableContext;
+import org.apache.blur.store.hdfs.HdfsDirectory;
 import org.apache.blur.thirdparty.thrift_0_9_0.TException;
 import org.apache.blur.thrift.generated.ArgumentDescriptor;
 import org.apache.blur.thrift.generated.Blur.Iface;
 import org.apache.blur.thrift.generated.BlurException;
 import org.apache.blur.thrift.generated.ColumnDefinition;
 import org.apache.blur.thrift.generated.CommandDescriptor;
+import org.apache.blur.thrift.generated.ErrorType;
 import org.apache.blur.thrift.generated.Level;
 import org.apache.blur.thrift.generated.Metric;
 import org.apache.blur.thrift.generated.Schema;
@@ -54,11 +56,17 @@ import org.apache.blur.thrift.generated.ShardState;
 import org.apache.blur.thrift.generated.TableDescriptor;
 import org.apache.blur.trace.Trace;
 import org.apache.blur.trace.TraceStorage;
-import org.apache.blur.utils.BlurUtil;
 import org.apache.blur.utils.MemoryReporter;
+import org.apache.blur.utils.ShardUtil;
+import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.FileStatus;
+import org.apache.hadoop.fs.FileSystem;
+import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.fs.PathFilter;
 import org.apache.log4j.LogManager;
 import org.apache.log4j.Logger;
 import org.apache.log4j.xml.DOMConfigurator;
+import org.apache.lucene.index.DirectoryReader;
 import org.apache.zookeeper.ZooKeeper;
 
 public abstract class TableAdmin implements Iface {
@@ -68,6 +76,7 @@ public abstract class TableAdmin implements Iface {
   protected ClusterStatus _clusterStatus;
   protected BlurConfiguration _configuration;
   protected int _maxRecordsPerRowFetchRequest = 1000;
+  protected String _nodeName;
 
   protected void checkSelectorFetchSize(Selector selector) {
     if (selector == null) {
@@ -116,10 +125,23 @@ public abstract class TableAdmin implements Iface {
   @Override
   public final void createTable(TableDescriptor tableDescriptor) throws BlurException, TException {
     try {
-      TableContext.clear(tableDescriptor.getName());
-      BlurUtil.validateTableName(tableDescriptor.getName());
+      ShardUtil.validateTableName(tableDescriptor.getName());
       assignClusterIfNull(tableDescriptor);
-      _clusterStatus.createTable(tableDescriptor);
+      List<String> tableList = _clusterStatus.getTableList(false, tableDescriptor.getCluster());
+      if (!tableList.contains(tableDescriptor.getName())) {
+        TableContext.clear(tableDescriptor.getName());
+        _clusterStatus.createTable(tableDescriptor);
+      } else {
+        TableDescriptor existing = _clusterStatus.getTableDescriptor(false, tableDescriptor.getCluster(),
+            tableDescriptor.getName());
+        if (existing.equals(tableDescriptor)) {
+          LOG.warn("Table [{0}] has already exists, but tried to create same table a second time.",
+              tableDescriptor.getName());
+        } else {
+          LOG.warn("Table [{0}] has already exists.", tableDescriptor.getName());
+          throw new BException("Table [{0}] has already exists.", tableDescriptor.getName());
+        }
+      }
     } catch (Exception e) {
       LOG.error("Unknown error during create of [table={0}, tableDescriptor={1}]", e, tableDescriptor.name,
           tableDescriptor);
@@ -446,9 +468,10 @@ public abstract class TableAdmin implements Iface {
     }
     boolean sortable = columnDefinition.isSortable();
     Map<String, String> props = columnDefinition.getProperties();
+    boolean multiValueField = columnDefinition.isMultiValueField();
     try {
       return fieldManager.addColumnDefinition(family, columnName, subColumnName, fieldLessIndexed, fieldType, sortable,
-          props);
+          multiValueField, props);
     } catch (IOException e) {
       throw new BException(
           "Unknown error while trying to addColumnDefinition on table [{0}] with columnDefinition [{1}]", e, table,
@@ -582,6 +605,7 @@ public abstract class TableAdmin implements Iface {
     columnDefinition.setFieldType(fieldTypeDefinition.getFieldType());
     columnDefinition.setSortable(fieldTypeDefinition.isSortEnable());
     columnDefinition.setProperties(fieldTypeDefinition.getProperties());
+    columnDefinition.setMultiValueField(fieldTypeDefinition.isMultiValueField());
     return columnDefinition;
   }
 
@@ -608,7 +632,7 @@ public abstract class TableAdmin implements Iface {
     }
     org.apache.log4j.Level current = logger.getLevel();
     org.apache.log4j.Level newLevel = getLevel(level);
-    LOG.info("Changing Logger [{0}] from logging level [{1}] to [{2}]", logger, current, newLevel);
+    LOG.info("Changing Logger [{0}] from logging level [{1}] to [{2}]", logger.getName(), current, newLevel);
     logger.setLevel(newLevel);
   }
 
@@ -693,6 +717,124 @@ public abstract class TableAdmin implements Iface {
       return org.apache.log4j.Level.WARN;
     default:
       throw new BException("Level [{0}] not found.", level);
+    }
+  }
+
+  @Override
+  public void bulkMutateStart(String bulkId) throws BlurException, TException {
+    // TODO Start transaction here...
+  }
+
+  @Override
+  public String configurationPerServer(String thriftServerPlusPort, String configName) throws BlurException, TException {
+    if (thriftServerPlusPort == null || thriftServerPlusPort.equals(_nodeName)) {
+      String s = _configuration.get(configName);
+      if (s == null) {
+        throw new BlurException("NOT_FOUND", null, ErrorType.UNKNOWN);
+      }
+      return s;
+    }
+    Iface client = BlurClient.getClient(thriftServerPlusPort);
+    return client.configurationPerServer(thriftServerPlusPort, configName);
+  }
+
+  public String getNodeName() {
+    return _nodeName;
+  }
+
+  public void setNodeName(String nodeName) {
+    _nodeName = nodeName;
+  }
+
+  protected String getCluster(String table) throws BlurException, TException {
+    TableDescriptor describe = describe(table);
+    if (describe == null) {
+      throw new BException("Table [" + table + "] not found.");
+    }
+    return describe.cluster;
+  }
+
+  @Override
+  public void loadIndex(String table, List<String> externalIndexPaths) throws BlurException, TException {
+    try {
+      if (externalIndexPaths == null || externalIndexPaths.isEmpty()) {
+        return;
+      }
+      String cluster = getCluster(table);
+      TableDescriptor tableDescriptor = _clusterStatus.getTableDescriptor(true, cluster, table);
+      TableContext tableContext = TableContext.create(tableDescriptor);
+      Configuration configuration = tableContext.getConfiguration();
+      Path tablePath = tableContext.getTablePath();
+      FileSystem fileSystem = tablePath.getFileSystem(configuration);
+      for (String externalPath : externalIndexPaths) {
+        Path newLoadShardPath = new Path(externalPath);
+        loadShard(newLoadShardPath, fileSystem, tablePath);
+      }
+    } catch (IOException e) {
+      throw new BException(e.getMessage(), e);
+    }
+  }
+
+  private void loadShard(Path newLoadShardPath, FileSystem fileSystem, Path tablePath) throws IOException {
+    Path shardPath = new Path(tablePath, newLoadShardPath.getName());
+    FileStatus[] listStatus = fileSystem.listStatus(newLoadShardPath, new PathFilter() {
+      @Override
+      public boolean accept(Path path) {
+        return path.getName().endsWith(".commit");
+      }
+    });
+
+    for (FileStatus fileStatus : listStatus) {
+      Path src = fileStatus.getPath();
+      Path dst = new Path(shardPath, src.getName());
+      if (fileSystem.rename(src, dst)) {
+        LOG.info("Successfully moved [{0}] to [{1}].", src, dst);
+      } else {
+        LOG.info("Could not move [{0}] to [{1}].", src, dst);
+        throw new IOException("Could not move [" + src + "] to [" + dst + "].");
+      }
+    }
+  }
+
+  @Override
+  public void validateIndex(String table, List<String> externalIndexPaths) throws BlurException, TException {
+    try {
+      if (externalIndexPaths == null || externalIndexPaths.isEmpty()) {
+        return;
+      }
+      String cluster = getCluster(table);
+      TableDescriptor tableDescriptor = _clusterStatus.getTableDescriptor(true, cluster, table);
+      TableContext tableContext = TableContext.create(tableDescriptor);
+      Configuration configuration = tableContext.getConfiguration();
+      Path tablePath = tableContext.getTablePath();
+      FileSystem fileSystem = tablePath.getFileSystem(configuration);
+      for (String externalPath : externalIndexPaths) {
+        Path shardPath = new Path(externalPath);
+        validateIndexesExist(shardPath, fileSystem, configuration);
+      }
+    } catch (IOException e) {
+      throw new BException(e.getMessage(), e);
+    }
+  }
+
+  private void validateIndexesExist(Path shardPath, FileSystem fileSystem, Configuration configuration)
+      throws IOException {
+    FileStatus[] listStatus = fileSystem.listStatus(shardPath, new PathFilter() {
+      @Override
+      public boolean accept(Path path) {
+        return path.getName().endsWith(".commit");
+      }
+    });
+    for (FileStatus fileStatus : listStatus) {
+      Path path = fileStatus.getPath();
+      HdfsDirectory directory = new HdfsDirectory(configuration, path);
+      try {
+        if (!DirectoryReader.indexExists(directory)) {
+          throw new IOException("Path [" + path + "] is not a valid index.");
+        }
+      } finally {
+        directory.close();
+      }
     }
   }
 

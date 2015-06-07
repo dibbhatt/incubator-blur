@@ -317,6 +317,7 @@ public class CacheIndexInput extends IndexInput {
     ensureOpen();
     if (pos >= _fileLength) {
       _position = pos;
+      releaseCache();
       return;
     }
     if (_position == pos) {
@@ -364,7 +365,11 @@ public class CacheIndexInput extends IndexInput {
   }
 
   private int remaining() {
-    return _cacheValue.length() - _blockPosition;
+    try {
+      return _cacheValue.length() - _blockPosition;
+    } catch (EvictionException e) {
+      return 0;
+    }
   }
 
   private void tryToFill() throws IOException {
@@ -385,7 +390,7 @@ public class CacheIndexInput extends IndexInput {
 
   private void fillQuietly() throws IOException {
     _key.setBlockId(getBlockId());
-    _cacheValue = _cache.getQuietly(_key);
+    _cacheValue = _cache.getQuietly(_directory, _fileName, _key);
     if (_cacheValue == null) {
       if (_cacheValueQuietRefCannotBeReleased == null) {
         // @TODO this could be improved.
@@ -412,7 +417,7 @@ public class CacheIndexInput extends IndexInput {
 
   private void fillNormally() throws IOException {
     _key.setBlockId(getBlockId());
-    _cacheValue = _cache.get(_key);
+    _cacheValue = _cache.get(_directory, _fileName, _key);
     if (_cacheValue == null) {
       _cacheValue = _cache.newInstance(_directory, _fileName);
       long filePosition = getFilePosition();
@@ -428,7 +433,7 @@ public class CacheIndexInput extends IndexInput {
         cachePosition += length;
       }
       _store.putBuffer(buffer);
-      _cache.put(_key.clone(), _cacheValue);
+      _cache.put(_directory, _fileName, _key.clone(), _cacheValue);
     }
     _blockPosition = getBlockPosition();
   }

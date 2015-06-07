@@ -395,10 +395,11 @@ public class Main {
   public static String[] tableCommands = { "create", "enable", "disable", "remove", "truncate", "describe", "list",
       "schema", "stats", "layout", "parse", "definecolumn", "optimize", "copy" };
   public static String[] dataCommands = { "query", "get", "mutate", "delete", "highlight", "selector", "terms",
-      "create-snapshot", "remove-snapshot", "list-snapshots" };
+      "create-snapshot", "remove-snapshot", "list-snapshots", "import" };
   public static String[] clusterCommands = { "controllers", "shards", "clusterlist", "cluster", "safemodewait", "top" };
   public static String[] shellCommands = { "help", "debug", "timed", "quit", "reset", "user", "whoami", "trace",
       "trace-remove", "trace-list" };
+  public static String[] platformCommands = { "command-list", "command-exec", "command-desc" };
   public static String[] serverCommands = { "logger", "logger-reset", "remove-shard" };
 
   private static class HelpCommand extends Command {
@@ -438,6 +439,10 @@ public class Main {
       out.println();
       out.println(" - Server commands - ");
       printCommandAndHelp(out, cmds, serverCommands, bufferLength);
+
+      out.println();
+      out.println(" - Platform commands - ");
+      printCommandAndHelp(out, cmds, platformCommands, bufferLength);
 
       out.println();
       out.println(" - Shell commands - ");
@@ -695,6 +700,7 @@ public class Main {
     register(builder, new ListPlatformCommandsCommand());
     register(builder, new DescribePlatformCommandCommand());
     register(builder, new ExecutePlatformCommandCommand());
+    register(builder, new ImportDataCommand());
     commands = builder.build();
   }
 

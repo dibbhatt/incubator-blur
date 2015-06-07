@@ -18,9 +18,10 @@ package org.apache.blur.thrift;
 import java.io.File;
 import java.io.IOException;
 
-
+import org.apache.blur.BlurConfiguration;
 import org.apache.blur.MiniCluster;
 import org.apache.blur.thrift.generated.Blur.Iface;
+import org.apache.blur.utils.BlurConstants;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
@@ -37,10 +38,10 @@ public class SuiteCluster {
       if (file.exists()) {
         FileUtils.deleteDirectory(file);
       }
+      cluster = null;
     }
   }
 
-  @SuppressWarnings({ "unchecked", "rawtypes" })
   public static void setupMiniCluster() throws IOException {
     File testDirectory = new File(TMPDIR, "blur-cluster-test").getAbsoluteFile();
     testDirectory.mkdirs();
@@ -48,15 +49,18 @@ public class SuiteCluster {
     testDirectory.delete();
     if (cluster == null) {
       cluster = new MiniCluster();
-      cluster.startBlurCluster(new File(testDirectory, "cluster").getAbsolutePath(), 2, 3, true);
+      cluster.startBlurCluster(new File(testDirectory, "cluster").getAbsolutePath(), 2, 3, true, false);
 
       System.out.println("MiniCluster started at " + cluster.getControllerConnectionStr());
 
     }
   }
 
-  public static Iface getClient() {
-    return BlurClient.getClient(cluster.getControllerConnectionStr());
+  public static Iface getClient() throws IOException {
+    String zkConnectionString = cluster.getZkConnectionString();
+    BlurConfiguration blurConfiguration = new BlurConfiguration();
+    blurConfiguration.set(BlurConstants.BLUR_ZOOKEEPER_CONNECTION, zkConnectionString);
+    return BlurClient.getClient(blurConfiguration);
   }
 
   public static boolean isClusterSetup() {
@@ -69,6 +73,10 @@ public class SuiteCluster {
     } catch (IOException e) {
       throw new RuntimeException(e);
     }
+  }
+
+  public static String getZooKeeperConnStr() {
+    return cluster.getZkConnectionString();
   }
 
 }
