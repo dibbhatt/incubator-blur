@@ -1,35 +1,3 @@
-<<<<<<< HEAD
-<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-	xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
-	
-<!--
-Licensed to the Apache Software Foundation (ASF) under one
-or more contributor license agreements.  See the NOTICE file
-distributed with this work for additional information
-regarding copyright ownership.  The ASF licenses this file
-to you under the Apache License, Version 2.0 (the
-"License"); you may not use this file except in compliance
-with the License.  You may obtain a copy of the License at
-
-  http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing,
-software distributed under the License is distributed on an
-"AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
-KIND, either express or implied.  See the License for the
-specific language governing permissions and limitations
-under the License.
--->
-
-	<modelVersion>4.0.0</modelVersion>
-
-	<groupId>spark-blur-connector</groupId>
-	<artifactId>spark-blur-connector</artifactId>
-	<version>0.0.1-SNAPSHOT</version>
-	<packaging>jar</packaging>
-
-	<name>spark-blur-connector</name>
-=======
 <?xml version="1.0" encoding="UTF-8" ?>
 <!-- Licensed to the Apache Software Foundation (ASF) under one or more contributor 
 	license agreements. See the NOTICE file distributed with this work for additional 
@@ -56,7 +24,6 @@ under the License.
 	<packaging>jar</packaging>
 	<name>Blur Spark Connector</name>
 	<description>The Blur spark connector module contains the the ability for Spark to write out to a Blur table.</description>
->>>>>>> 9243fe09f5cc015bdc75466816cc8fcc86b0403e
 
 	<repositories>
 		<repository>
@@ -74,10 +41,6 @@ under the License.
 	</repositories>
 
 	<build>
-<<<<<<< HEAD
-
-=======
->>>>>>> 9243fe09f5cc015bdc75466816cc8fcc86b0403e
 		<resources>
 			<resource>
 				<directory>src/main/resources/services</directory>
@@ -91,21 +54,6 @@ under the License.
 				<artifactId>maven-jar-plugin</artifactId>
 			</plugin>
 			<plugin>
-<<<<<<< HEAD
-				<artifactId>maven-assembly-plugin</artifactId>
-				<configuration>
-					<descriptorRefs>
-						<descriptorRef>jar-with-dependencies</descriptorRef>
-					</descriptorRefs>
-				</configuration>
-				<executions>
-					<execution>
-						<id>make-assembly</id>
-						<phase>package</phase>
-						<goals>
-							<goal>single</goal>
-						</goals>
-=======
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-shade-plugin</artifactId>
 				<version>2.2</version>
@@ -161,7 +109,6 @@ under the License.
 							<generatePom>true</generatePom>
 							<createChecksum>true</createChecksum>
 						</configuration>
->>>>>>> 9243fe09f5cc015bdc75466816cc8fcc86b0403e
 					</execution>
 				</executions>
 			</plugin>
@@ -170,100 +117,13 @@ under the License.
 
 	<dependencies>
 		<dependency>
-<<<<<<< HEAD
-			<groupId>org.apache.blur</groupId>
-			<artifactId>blur-thrift</artifactId>
-			<version>0.2.4-incubating-SNAPSHOT-hadoop1</version>
-		</dependency>
-		<dependency>
-			<groupId>org.apache.blur</groupId>
-			<artifactId>blur-util</artifactId>
-			<version>0.2.4-incubating-SNAPSHOT-hadoop1</version>
-		</dependency>
-		<dependency>
-			<groupId>org.apache.blur</groupId>
-			<artifactId>blur-core</artifactId>
-			<version>0.2.4-incubating-SNAPSHOT-hadoop1</version>
-		</dependency>
-		<dependency>
-			<groupId>org.apache.blur</groupId>
-			<artifactId>blur-store</artifactId>
-			<version>0.2.4-incubating-SNAPSHOT-hadoop1</version>
-		</dependency>
-		<dependency>
-			<groupId>org.apache.blur</groupId>
-			<artifactId>blur-query</artifactId>
-			<version>0.2.4-incubating-SNAPSHOT-hadoop1</version>
-		</dependency>
-		<dependency>
-			<groupId>org.apache.blur</groupId>
-			<artifactId>blur-mapred-hadoop1</artifactId>
-			<version>0.2.4-incubating-SNAPSHOT-hadoop1</version>
-		</dependency>
-		<dependency>
-			<groupId>org.apache.lucene</groupId>
-			<artifactId>lucene-core</artifactId>
-			<version>4.3.0</version>
-		</dependency>
-		<dependency>
-			<groupId>org.apache.lucene</groupId>
-			<artifactId>lucene-spatial</artifactId>
-			<version>4.3.0</version>
-		</dependency>
-		<dependency>
-			<groupId>org.apache.lucene</groupId>
-			<artifactId>lucene-codecs</artifactId>
-			<version>4.3.0</version>
-		</dependency>
-		<dependency>
-			<groupId>org.apache.lucene</groupId>
-			<artifactId>lucene-analyzers-common</artifactId>
-			<version>4.3.0</version>
-		</dependency>
-		<dependency>
-			<groupId>org.apache.lucene</groupId>
-			<artifactId>lucene-queries</artifactId>
-			<version>4.3.0</version>
-=======
 			<groupId>org.apache.spark</groupId>
 			<artifactId>spark-streaming_2.10</artifactId>
 			<version>1.2.0</version>
->>>>>>> 9243fe09f5cc015bdc75466816cc8fcc86b0403e
 		</dependency>
 		<dependency>
 			<groupId>junit</groupId>
 			<artifactId>junit</artifactId>
-<<<<<<< HEAD
-			<version>4.11</version>
-			<scope>test</scope>
-		</dependency>
-		<dependency>
-			<groupId>commons-codec</groupId>
-			<artifactId>commons-codec</artifactId>
-			<version>1.3</version>
-		</dependency>
-		<dependency>
-			<groupId>commons-logging</groupId>
-			<artifactId>commons-logging</artifactId>
-			<version>1.1.3</version>
-		</dependency>
-		<dependency>
-			<groupId>org.apache.hadoop</groupId>
-			<artifactId>hadoop-core</artifactId>
-			<version>1.2.1</version>
-		</dependency>
-		<dependency>
-			<groupId>org.slf4j</groupId>
-			<artifactId>slf4j-log4j12</artifactId>
-			<version>1.7.4</version>
-		</dependency>
-		<dependency>
-			<groupId>kafka.spark.consumer</groupId>
-			<artifactId>kafka-spark-consumer</artifactId>
-			<version>0.0.1-SNAPSHOT</version>
-		</dependency>
-	</dependencies>
-=======
 			<version>${junit.version}</version>
 			<scope>test</scope>
 		</dependency>
@@ -382,5 +242,4 @@ under the License.
 			</dependencies>
 		</profile>
 	</profiles>
->>>>>>> 9243fe09f5cc015bdc75466816cc8fcc86b0403e
 </project>

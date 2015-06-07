@@ -22,28 +22,6 @@ import org.apache.spark.HashPartitioner;
 
 public class BlurSparkPartitioner extends HashPartitioner {
 
-<<<<<<< HEAD
-	private static final long serialVersionUID = 9853263327838L;
-
-	int totalShard;
-
-	public BlurSparkPartitioner(int partitions) {
-
-		super(partitions);
-		totalShard = partitions;
-	}
-
-	@Override
-	public int getPartition(Object key) {
-
-		if (key instanceof Text) {
-
-			return (key.hashCode() & Integer.MAX_VALUE) % totalShard;
-		} else {
-			return super.getPartition(key);
-		}
-	}
-=======
   private static final long serialVersionUID = 9853263327838L;
 
   private final int _totalShard;
@@ -61,5 +39,4 @@ public class BlurSparkPartitioner extends HashPartitioner {
       return super.getPartition(key);
     }
   }
->>>>>>> 9243fe09f5cc015bdc75466816cc8fcc86b0403e
 }
